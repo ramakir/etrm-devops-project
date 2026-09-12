@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trade-service-config
+  namespace: etrm
+
+data:
+  SPRING_DATASOURCE_URL: "jdbc:aws-wrapper:postgresql://etrm-dev-postgres.cpuu2a8kw525.ap-south-1.rds.amazonaws.com:5432/etrm?options=-c%20TimeZone=UTC"
+  SPRING_DATASOURCE_USERNAME: "etrmapp"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "software.amazon.jdbc.Driver"
+
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  SPRING_JPA_SHOW_SQL: "false"
+  SPRING_JPA_OPEN_IN_VIEW: "false"
+
+  SPRING_PROFILES_ACTIVE: "prod"

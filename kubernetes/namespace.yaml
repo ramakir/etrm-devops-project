@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: etrm
+  labels:
+    environment: dev
+    project: etrm

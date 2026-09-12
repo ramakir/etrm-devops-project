@@ -1,0 +1,7 @@
+{
+  "counterparty": "ABC Energy",
+  "commodity": "POWER",
+  "quantity": 1000,
+  "price": 75.50,
+  "tradeType": "BUY"
+}
