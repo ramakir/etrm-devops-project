@@ -58,3 +58,13 @@ jenkins_home/
 # ==============================
 *.tmp
 *.temp
+
+# ==============================
+# SSM / Local test artifacts
+# ==============================
+infrastructure/terraform/environments/dev/add-key.json
+infrastructure/terraform/environments/dev/jenkins-ecr-test.json
+infrastructure/terraform/environments/dev/jenkins-tools-test.json
+infrastructure/terraform/environments/dev/ssh-auth-test.json
+infrastructure/terraform/environments/dev/ssh-keygen.json
+infrastructure/terraform/environments/dev/ssm-test.json

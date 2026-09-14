@@ -114,3 +114,38 @@ module "metrics_server" {
     module.eks
   ]
 }
+module "jenkins" {
+  source = "../../modules/jenkins"
+
+  project_name = "etrm"
+  environment  = "dev"
+
+  vpc_id = module.vpc.vpc_id
+
+  private_subnet_ids = module.vpc.private_subnet_ids
+
+  controller_instance_type = "t3.medium"
+  agent_instance_type      = "t3.medium"
+
+  aws_region = var.aws_region
+
+  ecr_repository_arn = module.ecr.repository_arn
+
+  jenkins_ami_id = "ami-07f35208dba26f009"
+}
+module "ecr" {
+  source = "../../modules/ecr"
+
+  project_name    = "etrm"
+  environment     = "dev"
+  repository_name = "etrm/trade-service"
+}
+module "argocd" {
+  source = "../../modules/argocd"
+
+  depends_on = [
+    module.eks
+  ]
+}
+
+
