@@ -52,26 +52,45 @@ pipeline {
         }
 
         stage('Update GitOps Image') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'github-https-push',
-                    usernameVariable: 'GIT_USERNAME',
-                    passwordVariable: 'GIT_TOKEN'
-                )]) {
-                    sh '''
-                        git config user.name "jenkins"
-                        git config user.email "jenkins@etrm-devops.local"
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'github-https-push',
+            usernameVariable: 'GIT_USERNAME',
+            passwordVariable: 'GIT_TOKEN'
+        )]) {
+            sh '''
+                set +x
 
-                        sed -i "s#\\(image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:\\).*#\\1ci-${BUILD_NUMBER}#" kubernetes/deployment.yaml
+                git config user.name "jenkins"
+                git config user.email "jenkins@etrm-devops.local"
 
-                        git add kubernetes/deployment.yaml
-                        git commit -m "Update trade-service image to ci-${BUILD_NUMBER}"
+                sed -i "s#\\(image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:\\).*#\\1ci-${BUILD_NUMBER}#" kubernetes/deployment.yaml
 
-                        git push https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/ramakir/etrm-devops-project.git HEAD:main
-                    '''
-                }
-            }
+                git add kubernetes/deployment.yaml
+                git commit -m "Update trade-service image to ci-${BUILD_NUMBER}"
+
+                export GIT_ASKPASS="$WORKSPACE/.git-askpass.sh"
+
+                cat > "$GIT_ASKPASS" <<'EOF'
+#!/bin/sh
+case "$1" in
+    *Username*) printf '%s\\n' "$GIT_USERNAME" ;;
+    *Password*) printf '%s\\n' "$GIT_TOKEN" ;;
+esac
+EOF
+
+                chmod 700 "$GIT_ASKPASS"
+
+                git remote set-url origin "https://github.com/ramakir/etrm-devops-project.git"
+
+                GIT_TERMINAL_PROMPT=0 git push origin HEAD:main
+
+                rm -f "$GIT_ASKPASS"
+                unset GIT_ASKPASS
+            '''
         }
+    }
+}
     }
 
     post {
