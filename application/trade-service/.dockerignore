@@ -3,6 +3,5 @@
 .mvn
 .idea
 .vscode
-target/*
 *.log
 README.md
