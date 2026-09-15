@@ -1,4 +1,4 @@
-pipeline {
+﻿pipeline {
     agent {
         label 'etrm-dev-agent'
     }
@@ -31,6 +31,12 @@ pipeline {
                 dir('application/trade-service') {
                     sh 'docker build -t 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER} .'
                 }
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                sh 'trivy image --severity HIGH,CRITICAL --exit-code 1 --no-progress 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}'
             }
         }
     }
