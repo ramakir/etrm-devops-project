@@ -33,7 +33,7 @@ spec:
       containers:
         - name: trade-service
 
-          image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-19
+          image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-20
 
           imagePullPolicy: IfNotPresent
 
