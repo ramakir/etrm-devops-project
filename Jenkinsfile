@@ -9,6 +9,14 @@ pipeline {
                 checkout scm
             }
         }
+
+        stage('Test') {
+            steps {
+                dir('application/trade-service') {
+                    sh 'mvn test'
+                }
+            }
+        }
     }
 
     post {
