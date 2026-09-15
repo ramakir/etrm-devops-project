@@ -39,6 +39,16 @@ pipeline {
                 sh 'TMPDIR=/var/lib/trivy-tmp trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --no-progress 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}'
             }
         }
+    stage('Push to ECR') {
+            steps {
+                sh '''
+                   aws ecr get-login-password --region ap-south-1 |
+                   docker login --username AWS --password-stdin 952121199249.dkr.ecr.ap-south-1.amazonaws.com
+
+                   docker push 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}
+                 '''
+             }
+         }
     }
 
     post {
@@ -51,5 +61,3 @@ pipeline {
         }
     }
 }
-
-
