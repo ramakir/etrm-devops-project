@@ -17,6 +17,14 @@ pipeline {
                 }
             }
         }
+
+        stage('Package') {
+            steps {
+                dir('application/trade-service') {
+                    sh 'mvn package -DskipTests'
+                }
+            }
+        }
     }
 
     post {
