@@ -2,7 +2,8 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-RUN useradd --create-home --shell /bin/bash appuser
+RUN rm -f /usr/bin/pebble \
+    && useradd --create-home --shell /bin/bash appuser
 
 COPY target/trade-service-0.0.1-SNAPSHOT.jar app.jar
 
