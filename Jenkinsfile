@@ -25,6 +25,14 @@ pipeline {
                 }
             }
         }
+
+        stage('Docker Build') {
+            steps {
+                dir('application/trade-service') {
+                    sh 'docker build -t 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci- .'
+                }
+            }
+        }
     }
 
     post {
