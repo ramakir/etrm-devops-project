@@ -52,26 +52,20 @@ pipeline {
         }
 
         stage('Update GitOps Image') {
-    steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'github-https-push',
-            usernameVariable: 'GIT_USERNAME',
-            passwordVariable: 'GIT_TOKEN'
-        )]) {
-            sh '''
-                set +x
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-https-push',
+                    usernameVariable: 'GIT_USERNAME',
+                    passwordVariable: 'GIT_TOKEN'
+                )]) {
+                    sh '''
+                        set +x
 
-                git config user.name "jenkins"
-                git config user.email "jenkins@etrm-devops.local"
+                        rm -rf etrm-gitops
 
-                sed -i "s#\\(image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:\\).*#\\1ci-${BUILD_NUMBER}#" kubernetes/deployment.yaml
+                        export GIT_ASKPASS="$WORKSPACE/.git-askpass.sh"
 
-                git add kubernetes/deployment.yaml
-                git commit -m "Update trade-service image to ci-${BUILD_NUMBER}"
-
-                export GIT_ASKPASS="$WORKSPACE/.git-askpass.sh"
-
-                cat > "$GIT_ASKPASS" <<'EOF'
+                        cat > "$GIT_ASKPASS" <<'EOF'
 #!/bin/sh
 case "$1" in
     *Username*) printf '%s\\n' "$GIT_USERNAME" ;;
@@ -79,18 +73,35 @@ case "$1" in
 esac
 EOF
 
-                chmod 700 "$GIT_ASKPASS"
+                        chmod 700 "$GIT_ASKPASS"
 
-                git remote set-url origin "https://github.com/ramakir/etrm-devops-project.git"
+                        GIT_TERMINAL_PROMPT=0 git clone \
+                            https://github.com/ramakir/etrm-gitops.git \
+                            etrm-gitops
 
-                GIT_TERMINAL_PROMPT=0 git push origin HEAD:main
+                        cd etrm-gitops
 
-                rm -f "$GIT_ASKPASS"
-                unset GIT_ASKPASS
-            '''
+                        git config user.name "jenkins"
+                        git config user.email "jenkins@etrm-devops.local"
+
+                        sed -i "s#\\(image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:\\).*#\\1ci-${BUILD_NUMBER}#" \
+                            environments/dev/deployment.yaml
+
+                        git add environments/dev/deployment.yaml
+
+                        git commit -m "Update trade-service image to ci-${BUILD_NUMBER}"
+
+                        GIT_TERMINAL_PROMPT=0 git push origin HEAD:main
+
+                        cd ..
+
+                        rm -rf etrm-gitops
+                        rm -f "$GIT_ASKPASS"
+                        unset GIT_ASKPASS
+                    '''
+                }
+            }
         }
-    }
-}
     }
 
     post {
