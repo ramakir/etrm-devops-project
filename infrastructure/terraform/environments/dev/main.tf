@@ -49,8 +49,10 @@ module "eks" {
 
   private_subnet_ids = module.vpc.private_subnet_ids
 
-  cluster_role_arn = module.iam.eks_cluster_role_arn
-  node_role_arn    = module.iam.eks_node_role_arn
+  cluster_role_arn                = module.iam.eks_cluster_role_arn
+  node_role_arn                   = module.iam.eks_node_role_arn
+  jenkins_agent_role_arn          = module.jenkins.jenkins_agent_role_arn
+  jenkins_agent_security_group_id = "sg-098e52b60b77c74a9"
 }
 
 module "rds" {
@@ -146,6 +148,16 @@ module "argocd" {
   depends_on = [
     module.eks
   ]
+}
+module "cloudwatch" {
+  source = "../../modules/cloudwatch"
+
+  project_name = "etrm"
+  environment  = "dev"
+  cluster_name = "etrm-dev-eks"
+  alarm_email  = var.alarm_email
+
+  depends_on = [module.eks]
 }
 
 

@@ -60,3 +60,11 @@ variable "node_max_size" {
   type        = number
   default     = 4
 }
+variable "jenkins_agent_role_arn" {
+  description = "IAM role ARN used by the Jenkins build agent"
+  type        = string
+}
+variable "jenkins_agent_security_group_id" {
+  description = "Security group ID of the Jenkins build agent"
+  type        = string
+}

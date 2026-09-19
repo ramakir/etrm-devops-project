@@ -120,3 +120,28 @@ resource "aws_iam_role_policy" "jenkins_agent_ecr" {
     ]
   })
 }
+# ---------------------------------------------------------
+# Jenkins Agent EKS Read Access
+# ---------------------------------------------------------
+
+resource "aws_iam_role_policy" "jenkins_agent_eks_read" {
+  name = "${var.project_name}-${var.environment}-jenkins-agent-eks-read"
+
+  role = aws_iam_role.jenkins_agent.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "eks:DescribeCluster"
+        ]
+
+        Resource = "arn:aws:eks:${var.aws_region}:*:cluster/${var.project_name}-${var.environment}-eks"
+      }
+    ]
+  })
+}

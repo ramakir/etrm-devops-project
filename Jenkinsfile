@@ -102,6 +102,92 @@ EOF
                 }
             }
         }
+        
+                stage('Release Validation') {
+            steps {
+                sh '''
+                    set -e
+
+                    EXPECTED_IMAGE="952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}"
+
+                    echo "Waiting for Kubernetes rollout..."
+
+                    kubectl rollout status deployment/trade-service \
+                        -n etrm \
+                        --timeout=180s
+
+                    echo "Checking deployed image..."
+
+                    ACTUAL_IMAGE=$(kubectl get deployment trade-service \
+                        -n etrm \
+                        -o jsonpath='{.spec.template.spec.containers[0].image}')
+
+                    echo "Expected image: ${EXPECTED_IMAGE}"
+                    echo "Actual image:   ${ACTUAL_IMAGE}"
+
+                    if [ "${ACTUAL_IMAGE}" != "${EXPECTED_IMAGE}" ]; then
+                        echo "ERROR: Deployment image does not match expected build."
+                        exit 1
+                    fi
+
+                    echo "Checking replica readiness..."
+
+                    DESIRED=$(kubectl get deployment trade-service \
+                    	-n etrm \
+                    	-o jsonpath='{.spec.replicas}')
+
+                    AVAILABLE=$(kubectl get deployment trade-service \
+                        -n etrm \
+                        -o jsonpath='{.status.availableReplicas}')
+
+                    READY=$(kubectl get deployment trade-service \
+                        -n etrm \
+                        -o jsonpath='{.status.readyReplicas}')
+
+                    UPDATED=$(kubectl get deployment trade-service \
+                        -n etrm \
+                        -o jsonpath='{.status.updatedReplicas}')
+
+                    echo "Desired replicas:   ${DESIRED}"
+                    echo "Available replicas: ${AVAILABLE}"
+                    echo "Ready replicas:     ${READY}"
+                    echo "Updated replicas:   ${UPDATED}"
+
+                    if [ "${AVAILABLE}" != "${DESIRED}" ] || \
+                       [ "${READY}" != "${DESIRED}" ] || \
+                       [ "${UPDATED}" != "${DESIRED}" ]; then
+                        echo "ERROR: Deployment replica validation failed."
+                        exit 1
+                    fi
+
+                    echo "Checking actual pod images..."
+
+                    POD_IMAGES=$(kubectl get pods \
+                        -n etrm \
+                        -l app=trade-service \
+                        -o jsonpath='{range .items[*]}{.spec.containers[0].image}{"\\n"}{end}')
+
+                    echo "${POD_IMAGES}"
+
+                    if echo "${POD_IMAGES}" | grep -vFx "${EXPECTED_IMAGE}" | grep -q .; then
+                        echo "ERROR: One or more pods are running an unexpected image."
+                        exit 1
+                    fi
+
+                    echo "Checking application health..."
+
+                    curl -fsS \
+                        http://k8s-etrm-tradeser-caff546086-1568206008.ap-south-1.elb.amazonaws.com/actuator/health \
+                        > health.json
+
+                    cat health.json
+
+                    grep -q '"status":"UP"' health.json
+
+                    echo "Release validation completed successfully."
+                '''
+            }
+        }
     }
 
     post {
