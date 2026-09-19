@@ -104,100 +104,128 @@ EOF
         }
         
         stage('Release Validation') {
-            steps {
-                sh '''
-                    set -e
-            
-                    echo "Configuring EKS access..."
+    steps {
+        sh '''
+            set -e
 
-    		    aws eks update-kubeconfig \
-        		--region ap-south-1 \
-        		--name etrm-dev-eks
+            echo "Configuring EKS access..."
 
-    		    echo "Verifying EKS access..."
+            aws eks update-kubeconfig \
+                --region ap-south-1 \
+                --name etrm-dev-eks
 
-                    kubectl get namespace etrm
+            echo "Verifying EKS access..."
 
-                    EXPECTED_IMAGE="952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}"
+            kubectl get namespace etrm
 
-                    echo "Waiting for Kubernetes rollout..."
+            EXPECTED_IMAGE="952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}"
 
-                    kubectl rollout status deployment/trade-service \
-                        -n etrm \
-                        --timeout=180s
+            echo "Expected release image: ${EXPECTED_IMAGE}"
 
-                    echo "Checking deployed image..."
+            echo "Waiting for Argo CD to reconcile the GitOps change..."
 
-                    ACTUAL_IMAGE=$(kubectl get deployment trade-service \
-                        -n etrm \
-                        -o jsonpath='{.spec.template.spec.containers[0].image}')
+            for i in $(seq 1 60); do
 
-                    echo "Expected image: ${EXPECTED_IMAGE}"
-                    echo "Actual image:   ${ACTUAL_IMAGE}"
+                ACTUAL_IMAGE=$(kubectl get deployment trade-service \
+                    -n etrm \
+                    -o jsonpath='{.spec.template.spec.containers[0].image}')
 
-                    if [ "${ACTUAL_IMAGE}" != "${EXPECTED_IMAGE}" ]; then
-                        echo "ERROR: Deployment image does not match expected build."
-                        exit 1
-                    fi
+                echo "Attempt ${i}/60 - Current deployment image: ${ACTUAL_IMAGE}"
 
-                    echo "Checking replica readiness..."
+                if [ "${ACTUAL_IMAGE}" = "${EXPECTED_IMAGE}" ]; then
+                    echo "Expected image is now present in the Deployment."
+                    break
+                fi
 
-                    DESIRED=$(kubectl get deployment trade-service \
-                    	-n etrm \
-                    	-o jsonpath='{.spec.replicas}')
+                if [ "$i" -eq 60 ]; then
+                    echo "ERROR: Timed out waiting for Argo CD to reconcile expected image."
+                    echo "Expected: ${EXPECTED_IMAGE}"
+                    echo "Actual:   ${ACTUAL_IMAGE}"
+                    exit 1
+                fi
 
-                    AVAILABLE=$(kubectl get deployment trade-service \
-                        -n etrm \
-                        -o jsonpath='{.status.availableReplicas}')
+                sleep 10
+            done
 
-                    READY=$(kubectl get deployment trade-service \
-                        -n etrm \
-                        -o jsonpath='{.status.readyReplicas}')
+            echo "Waiting for Kubernetes rollout..."
 
-                    UPDATED=$(kubectl get deployment trade-service \
-                        -n etrm \
-                        -o jsonpath='{.status.updatedReplicas}')
+            kubectl rollout status deployment/trade-service \
+                -n etrm \
+                --timeout=180s
 
-                    echo "Desired replicas:   ${DESIRED}"
-                    echo "Available replicas: ${AVAILABLE}"
-                    echo "Ready replicas:     ${READY}"
-                    echo "Updated replicas:   ${UPDATED}"
+            echo "Checking deployed image..."
 
-                    if [ "${AVAILABLE}" != "${DESIRED}" ] || \
-                       [ "${READY}" != "${DESIRED}" ] || \
-                       [ "${UPDATED}" != "${DESIRED}" ]; then
-                        echo "ERROR: Deployment replica validation failed."
-                        exit 1
-                    fi
+            ACTUAL_IMAGE=$(kubectl get deployment trade-service \
+                -n etrm \
+                -o jsonpath='{.spec.template.spec.containers[0].image}')
 
-                    echo "Checking actual pod images..."
+            echo "Expected image: ${EXPECTED_IMAGE}"
+            echo "Actual image:   ${ACTUAL_IMAGE}"
 
-                    POD_IMAGES=$(kubectl get pods \
-                        -n etrm \
-                        -l app=trade-service \
-                        -o jsonpath='{range .items[*]}{.spec.containers[0].image}{"\\n"}{end}')
+            if [ "${ACTUAL_IMAGE}" != "${EXPECTED_IMAGE}" ]; then
+                echo "ERROR: Deployment image does not match expected build."
+                exit 1
+            fi
 
-                    echo "${POD_IMAGES}"
+            echo "Checking replica readiness..."
 
-                    if echo "${POD_IMAGES}" | grep -vFx "${EXPECTED_IMAGE}" | grep -q .; then
-                        echo "ERROR: One or more pods are running an unexpected image."
-                        exit 1
-                    fi
+            DESIRED=$(kubectl get deployment trade-service \
+                -n etrm \
+                -o jsonpath='{.spec.replicas}')
 
-                    echo "Checking application health..."
+            AVAILABLE=$(kubectl get deployment trade-service \
+                -n etrm \
+                -o jsonpath='{.status.availableReplicas}')
 
-                    curl -fsS \
-                        http://k8s-etrm-tradeser-caff546086-1568206008.ap-south-1.elb.amazonaws.com/actuator/health \
-                        > health.json
+            READY=$(kubectl get deployment trade-service \
+                -n etrm \
+                -o jsonpath='{.status.readyReplicas}')
 
-                    cat health.json
+            UPDATED=$(kubectl get deployment trade-service \
+                -n etrm \
+                -o jsonpath='{.status.updatedReplicas}')
 
-                    grep -q '"status":"UP"' health.json
+            echo "Desired replicas:   ${DESIRED}"
+            echo "Available replicas: ${AVAILABLE}"
+            echo "Ready replicas:     ${READY}"
+            echo "Updated replicas:   ${UPDATED}"
 
-                    echo "Release validation completed successfully."
-                '''
-            }
-        }
+            if [ "${AVAILABLE}" != "${DESIRED}" ] || \
+               [ "${READY}" != "${DESIRED}" ] || \
+               [ "${UPDATED}" != "${DESIRED}" ]; then
+                echo "ERROR: Deployment replica validation failed."
+                exit 1
+            fi
+
+            echo "Checking actual pod images..."
+
+            POD_IMAGES=$(kubectl get pods \
+                -n etrm \
+                -l app=trade-service \
+                -o jsonpath='{range .items[*]}{.spec.containers[0].image}{"\\n"}{end}')
+
+            echo "${POD_IMAGES}"
+
+            if echo "${POD_IMAGES}" | grep -vFx "${EXPECTED_IMAGE}" | grep -q .; then
+                echo "ERROR: One or more pods are running an unexpected image."
+                exit 1
+            fi
+
+            echo "Checking application health..."
+
+            curl -fsS \
+                http://k8s-etrm-tradeser-caff546086-1568206008.ap-south-1.elb.amazonaws.com/actuator/health \
+                > health.json
+
+            cat health.json
+
+            grep -q '"status":"UP"' health.json
+
+            echo "Release validation completed successfully."
+        '''
+    }
+}
+
     }
 
     post {
