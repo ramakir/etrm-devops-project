@@ -151,7 +151,7 @@ EOF
 
             kubectl rollout status deployment/trade-service \
                 -n etrm \
-                --timeout=180s
+                --timeout=300s
 
             echo "Checking deployed image..."
 
