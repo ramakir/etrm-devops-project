@@ -103,10 +103,20 @@ EOF
             }
         }
         
-                stage('Release Validation') {
+        stage('Release Validation') {
             steps {
                 sh '''
                     set -e
+            
+                    echo "Configuring EKS access..."
+
+    		    aws eks update-kubeconfig \
+        		--region ap-south-1 \
+        		--name etrm-dev-eks
+
+    		    echo "Verifying EKS access..."
+
+                    kubectl get namespace etrm
 
                     EXPECTED_IMAGE="952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}"
 
