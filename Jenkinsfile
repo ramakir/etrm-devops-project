@@ -10,6 +10,22 @@ pipeline {
             }
         }
 
+        stage('Set Release Version') {
+            steps {
+                script {
+                    env.GIT_SHA = sh(
+                        script: 'git rev-parse --short=12 HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    env.IMAGE_TAG = "sha-${env.GIT_SHA}"
+
+                    echo "Git commit SHA: ${env.GIT_SHA}"
+                    echo "Release image tag: ${env.IMAGE_TAG}"
+                }
+            }
+        }
+
         stage('Test') {
             steps {
                 dir('application/trade-service') {
@@ -29,14 +45,14 @@ pipeline {
         stage('Docker Build') {
             steps {
                 dir('application/trade-service') {
-                    sh 'docker build -t 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER} .'
+                    sh 'docker build -t 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:${IMAGE_TAG} .'
                 }
             }
         }
 
         stage('Security Scan') {
             steps {
-                sh 'TMPDIR=/var/lib/trivy-tmp trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --no-progress 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}'
+                sh 'TMPDIR=/var/lib/trivy-tmp trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --no-progress 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:${IMAGE_TAG}'
             }
         }
 
@@ -46,7 +62,7 @@ pipeline {
                     aws ecr get-login-password --region ap-south-1 |
                     docker login --username AWS --password-stdin 952121199249.dkr.ecr.ap-south-1.amazonaws.com
 
-                    docker push 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}
+                    docker push 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:${IMAGE_TAG}
                 '''
             }
         }
@@ -84,12 +100,12 @@ EOF
                         git config user.name "jenkins"
                         git config user.email "jenkins@etrm-devops.local"
 
-                        sed -i "s#\\(image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:\\).*#\\1ci-${BUILD_NUMBER}#" \
+                        sed -i "s#\\(image: 952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:\\).*#\\1${IMAGE_TAG}#" \
                             environments/dev/deployment.yaml
 
                         git add environments/dev/deployment.yaml
 
-                        git commit -m "Update trade-service image to ci-${BUILD_NUMBER}"
+                        git commit -m "Update trade-service image to ${IMAGE_TAG}"
 
                         GIT_TERMINAL_PROMPT=0 git push origin HEAD:main
 
@@ -118,7 +134,7 @@ EOF
 
             kubectl get namespace etrm
 
-            EXPECTED_IMAGE="952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:ci-${BUILD_NUMBER}"
+            EXPECTED_IMAGE="952121199249.dkr.ecr.ap-south-1.amazonaws.com/etrm/trade-service:${IMAGE_TAG}"
 
             echo "Expected release image: ${EXPECTED_IMAGE}"
 
